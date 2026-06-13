@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Photo } from "@/components/ui";
+import { HeroCarousel } from "@/components/HeroCarousel";
 import { getActiveBarbershops, getBusinessHours } from "@/lib/queries";
 import { dayLabel, formatTimeLabel } from "@/lib/format";
 
@@ -51,7 +52,14 @@ export default async function HomePage() {
               </Link>
             </div>
           </div>
-          <Photo className="h-64 w-full rounded-2xl sm:h-72" label />
+          <HeroCarousel
+            slides={shops.map((s) => ({
+              name: s.name,
+              slug: s.slug,
+              tagline: s.tagline,
+              coverUrl: s.cover_url,
+            }))}
+          />
         </section>
 
         {/* Barberías */}
