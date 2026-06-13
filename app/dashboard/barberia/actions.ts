@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getProfessionalContext } from "@/lib/owner";
+import { createAdminClient } from "@/lib/supabase/server";
 
 export interface ActionResult {
   ok: boolean;
@@ -86,8 +87,9 @@ export async function uploadShopImageAction(
     file!.name
   )}`;
   const bytes = await file!.arrayBuffer();
+  const admin = createAdminClient();
 
-  const up = await ctx.supabase.storage
+  const up = await admin.storage
     .from("media")
     .upload(path, bytes, {
       contentType: file!.type || "image/jpeg",
@@ -95,7 +97,7 @@ export async function uploadShopImageAction(
     });
   if (up.error) return { ok: false, error: up.error.message };
 
-  const { data: pub } = ctx.supabase.storage.from("media").getPublicUrl(path);
+  const { data: pub } = admin.storage.from("media").getPublicUrl(path);
 
   const { data: prev } = await ctx.supabase
     .from("barbershops")
@@ -123,7 +125,7 @@ export async function uploadShopImageAction(
     const marker = "/object/public/media/";
     const idx = oldUrl.indexOf(marker);
     if (idx !== -1) {
-      await ctx.supabase.storage
+      await admin.storage
         .from("media")
         .remove([oldUrl.slice(idx + marker.length)]);
     }

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 export interface ActionResult {
   ok: boolean;
@@ -93,10 +93,11 @@ export async function uploadStylistPhotoAction(
   const invalid = validateImage(file);
   if (invalid) return { ok: false, error: invalid };
 
+  const admin = createAdminClient();
   const path = `stylists/${stylist.id}/avatar-${Date.now()}.${fileExt(file!.name)}`;
   const bytes = await file!.arrayBuffer();
 
-  const up = await supabase.storage
+  const up = await admin.storage
     .from(STORAGE_BUCKET)
     .upload(path, bytes, {
       contentType: file!.type || "image/jpeg",
@@ -104,7 +105,7 @@ export async function uploadStylistPhotoAction(
     });
   if (up.error) return { ok: false, error: up.error.message };
 
-  const { data: pub } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+  const { data: pub } = admin.storage.from(STORAGE_BUCKET).getPublicUrl(path);
 
   const { data: prev } = await supabase
     .from("stylists")
@@ -120,7 +121,7 @@ export async function uploadStylistPhotoAction(
 
   if (prev?.photo_url) {
     const oldPath = storagePathFromUrl(prev.photo_url);
-    if (oldPath) await supabase.storage.from(STORAGE_BUCKET).remove([oldPath]);
+    if (oldPath) await admin.storage.from(STORAGE_BUCKET).remove([oldPath]);
   }
 
   revalidateAll();
@@ -138,15 +139,16 @@ export async function uploadGalleryImageAction(
   const invalid = validateImage(file);
   if (invalid) return { ok: false, error: invalid };
 
+  const admin = createAdminClient();
   const path = `gallery/${stylist.id}/${crypto.randomUUID()}.${fileExt(file!.name)}`;
   const bytes = await file!.arrayBuffer();
 
-  const up = await supabase.storage
+  const up = await admin.storage
     .from(STORAGE_BUCKET)
     .upload(path, bytes, { contentType: file!.type || "image/jpeg" });
   if (up.error) return { ok: false, error: up.error.message };
 
-  const { data: pub } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+  const { data: pub } = admin.storage.from(STORAGE_BUCKET).getPublicUrl(path);
 
   const { count } = await supabase
     .from("stylist_gallery")
@@ -184,8 +186,9 @@ export async function deleteGalleryImageAction(
   if (error) return { ok: false, error: error.message };
 
   if (row?.image_url) {
+    const admin = createAdminClient();
     const path = storagePathFromUrl(row.image_url);
-    if (path) await supabase.storage.from(STORAGE_BUCKET).remove([path]);
+    if (path) await admin.storage.from(STORAGE_BUCKET).remove([path]);
   }
 
   revalidateAll();
