@@ -88,7 +88,7 @@ export function StylistsManager({
             />
           ) : (
             <div key={s.id} className="rounded-xl border border-neutral-200 bg-white">
-              <div className="flex items-center justify-between p-4">
+              <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <Monogram name={s.name} size="h-11 w-11" text="text-sm" />
                   <div>
@@ -114,7 +114,7 @@ export function StylistsManager({
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex flex-wrap items-center gap-1">
                   <ToggleActive stylist={s} onError={setErr} />
                   {!s.user_id && (
                     <button

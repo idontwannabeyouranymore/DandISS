@@ -117,14 +117,14 @@ export default async function EstadisticasPage({
     <>
       <DashboardHeader role={ctx.role} />
       <main className="mx-auto max-w-3xl px-5 pb-20 pt-8">
-        <div className="flex items-end justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Estadísticas</h1>
             <p className="mt-1 text-sm text-neutral-500">
               Últimos {days} días.
             </p>
           </div>
-          <div className="flex gap-1 rounded-lg border border-neutral-200 bg-white p-1">
+          <div className="flex w-fit gap-1 rounded-lg border border-neutral-200 bg-white p-1">
             {PERIODS.map((p) => (
               <Link
                 key={p.days}

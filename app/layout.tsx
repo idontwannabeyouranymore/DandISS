@@ -1,10 +1,17 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "DandISS — Agenda tu cita en minutos",
   description:
     "Plataforma de agendación de citas para barberías y estéticas. Encuentra tu barbería favorita y reserva sin llamadas ni esperas.",
+};
+
+// Asegura que en móvil la página se ajuste al ancho del dispositivo (sin zoom).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout({

@@ -113,7 +113,7 @@ function ServiceRow({
 
   return (
     <div
-      className={`flex items-center justify-between rounded-xl border p-4 ${
+      className={`flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between ${
         service.is_active
           ? "border-neutral-200 bg-white"
           : "border-neutral-200 bg-neutral-50"
