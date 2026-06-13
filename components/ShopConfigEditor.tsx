@@ -7,7 +7,7 @@ import { Photo } from "@/components/ui";
 import { dayLabel } from "@/lib/format";
 import {
   updateShopAction,
-  updateShopImageAction,
+  uploadShopImageAction,
   updateHoursAction,
   type HourInput,
 } from "@/app/dashboard/barberia/actions";
@@ -67,15 +67,11 @@ export function ShopConfigEditor({
     setErr(null);
     setUploading(true);
     try {
-      const path = `shops/${shop.id}/cover-${Date.now()}.${ext(file.name)}`;
-      const up = await supabase.storage
-        .from(BUCKET)
-        .upload(path, file, { upsert: true });
-      if (up.error) throw up.error;
-      const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-      const r = await updateShopImageAction("cover_url", data.publicUrl);
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await uploadShopImageAction("cover_url", fd);
       if (!r.ok) throw new Error(r.error);
-      setCover(data.publicUrl);
+      setCover(r.url ?? null);
       flash("Portada actualizada");
     } catch (e: any) {
       setErr(e?.message ?? "No se pudo subir la imagen.");

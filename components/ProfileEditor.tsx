@@ -16,8 +16,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Monogram, Photo } from "@/components/ui";
 import {
   updateProfileAction,
-  updatePhotoAction,
-  addGalleryImageAction,
+  uploadStylistPhotoAction,
+  uploadGalleryImageAction,
   deleteGalleryImageAction,
   addSocialLinkAction,
   deleteSocialLinkAction,
@@ -95,15 +95,11 @@ export function ProfileEditor({
     setErr(null);
     setUploadingPhoto(true);
     try {
-      const path = `stylists/${stylistId}/avatar-${Date.now()}.${ext(file.name)}`;
-      const up = await supabase.storage
-        .from(BUCKET)
-        .upload(path, file, { upsert: true, cacheControl: "3600" });
-      if (up.error) throw up.error;
-      const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-      const r = await updatePhotoAction(data.publicUrl);
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await uploadStylistPhotoAction(fd);
       if (!r.ok) throw new Error(r.error);
-      setPhoto(data.publicUrl);
+      setPhoto(r.url ?? null);
       flash(true, "Foto actualizada");
     } catch (e: any) {
       setErr(e?.message ?? "No se pudo subir la foto.");
@@ -122,16 +118,11 @@ export function ProfileEditor({
     setUploadingGallery(true);
     try {
       for (const file of Array.from(files)) {
-        const id =
-          globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
-        const path = `gallery/${stylistId}/${id}.${ext(file.name)}`;
-        const up = await supabase.storage.from(BUCKET).upload(path, file);
-        if (up.error) throw up.error;
-        const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-        const r = await addGalleryImageAction(data.publicUrl, "");
+        const fd = new FormData();
+        fd.append("file", file);
+        const r = await uploadGalleryImageAction(fd);
         if (!r.ok) throw new Error(r.error);
       }
-      // Recarga ligera del estado desde el servidor en el próximo render.
       flash(true, "Imagen(es) agregada(s)");
       window.location.reload();
     } catch (e: any) {

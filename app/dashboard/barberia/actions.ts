@@ -54,12 +54,48 @@ export async function updateShopAction(input: {
   return { ok: true };
 }
 
-export async function updateShopImageAction(
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+function fileExt(name: string): string {
+  const parts = name.split(".");
+  return parts.length > 1 ? parts.pop()!.toLowerCase() : "jpg";
+}
+
+function validateImage(file: File | null): string | null {
+  if (!file || file.size === 0) return "Archivo inválido.";
+  if (!file.type.startsWith("image/")) return "El archivo debe ser una imagen.";
+  if (file.size > MAX_IMAGE_BYTES) return "La imagen supera el máximo de 5 MB.";
+  return null;
+}
+
+// Sube la portada/logo EN EL SERVIDOR (la sesión va adjunta, RLS reconoce al
+// dueño). Recibe el archivo por FormData.
+export async function uploadShopImageAction(
   field: "cover_url" | "logo_url",
-  url: string
-): Promise<ActionResult> {
+  formData: FormData
+): Promise<ActionResult & { url?: string }> {
   const ctx = await requireOwner();
   if (!ctx.ok) return { ok: false, error: "No autorizado." };
+
+  const file = formData.get("file") as File | null;
+  const invalid = validateImage(file);
+  if (invalid) return { ok: false, error: invalid };
+
+  const kind = field === "logo_url" ? "logo" : "cover";
+  const path = `shops/${ctx.barbershopId}/${kind}-${Date.now()}.${fileExt(
+    file!.name
+  )}`;
+  const bytes = await file!.arrayBuffer();
+
+  const up = await ctx.supabase.storage
+    .from("media")
+    .upload(path, bytes, {
+      contentType: file!.type || "image/jpeg",
+      upsert: true,
+    });
+  if (up.error) return { ok: false, error: up.error.message };
+
+  const { data: pub } = ctx.supabase.storage.from("media").getPublicUrl(path);
 
   const { data: prev } = await ctx.supabase
     .from("barbershops")
@@ -67,11 +103,19 @@ export async function updateShopImageAction(
     .eq("id", ctx.barbershopId)
     .maybeSingle<Record<string, string | null>>();
 
-  const { error } = await ctx.supabase
+  const { data, error } = await ctx.supabase
     .from("barbershops")
-    .update({ [field]: url })
-    .eq("id", ctx.barbershopId);
+    .update({ [field]: pub.publicUrl })
+    .eq("id", ctx.barbershopId)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) {
+    return {
+      ok: false,
+      error:
+        "No se aplicó el cambio. Verifica que tu usuario sea el owner_id de la barbería.",
+    };
+  }
 
   // Limpia la imagen anterior del Storage.
   const oldUrl = prev?.[field];
@@ -79,13 +123,14 @@ export async function updateShopImageAction(
     const marker = "/object/public/media/";
     const idx = oldUrl.indexOf(marker);
     if (idx !== -1) {
-      const path = oldUrl.slice(idx + marker.length);
-      await ctx.supabase.storage.from("media").remove([path]);
+      await ctx.supabase.storage
+        .from("media")
+        .remove([oldUrl.slice(idx + marker.length)]);
     }
   }
 
   revalidate();
-  return { ok: true };
+  return { ok: true, url: pub.publicUrl };
 }
 
 export interface HourInput {

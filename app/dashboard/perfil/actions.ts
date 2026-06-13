@@ -18,6 +18,22 @@ function storagePathFromUrl(url: string): string | null {
   return url.slice(idx + PUBLIC_MARKER.length);
 }
 
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+function fileExt(name: string): string {
+  const parts = name.split(".");
+  return parts.length > 1 ? parts.pop()!.toLowerCase() : "jpg";
+}
+
+// Valida un archivo de imagen recibido por FormData. Devuelve un mensaje de
+// error o null si está bien.
+function validateImage(file: File | null): string | null {
+  if (!file || file.size === 0) return "Archivo inválido.";
+  if (!file.type.startsWith("image/")) return "El archivo debe ser una imagen.";
+  if (file.size > MAX_IMAGE_BYTES) return "La imagen supera el máximo de 5 MB.";
+  return null;
+}
+
 async function getCurrentStylist() {
   const supabase = await createClient();
   const {
@@ -65,11 +81,31 @@ export async function updateProfileAction(fields: {
   return { ok: true };
 }
 
-export async function updatePhotoAction(url: string): Promise<ActionResult> {
+// Sube la foto de perfil EN EL SERVIDOR (la sesión va siempre adjunta, así que
+// la RLS de Storage reconoce al estilista). Recibe el archivo por FormData.
+export async function uploadStylistPhotoAction(
+  formData: FormData
+): Promise<ActionResult & { url?: string }> {
   const { supabase, stylist } = await getCurrentStylist();
   if (!stylist) return { ok: false, error: "No se encontró tu perfil." };
 
-  // Borra la foto anterior del Storage si existía.
+  const file = formData.get("file") as File | null;
+  const invalid = validateImage(file);
+  if (invalid) return { ok: false, error: invalid };
+
+  const path = `stylists/${stylist.id}/avatar-${Date.now()}.${fileExt(file!.name)}`;
+  const bytes = await file!.arrayBuffer();
+
+  const up = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(path, bytes, {
+      contentType: file!.type || "image/jpeg",
+      upsert: true,
+    });
+  if (up.error) return { ok: false, error: up.error.message };
+
+  const { data: pub } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+
   const { data: prev } = await supabase
     .from("stylists")
     .select("photo_url")
@@ -78,7 +114,7 @@ export async function updatePhotoAction(url: string): Promise<ActionResult> {
 
   const { error } = await supabase
     .from("stylists")
-    .update({ photo_url: url })
+    .update({ photo_url: pub.publicUrl })
     .eq("id", stylist.id);
   if (error) return { ok: false, error: error.message };
 
@@ -88,15 +124,29 @@ export async function updatePhotoAction(url: string): Promise<ActionResult> {
   }
 
   revalidateAll();
-  return { ok: true };
+  return { ok: true, url: pub.publicUrl };
 }
 
-export async function addGalleryImageAction(
-  url: string,
-  caption: string
+// Sube una imagen de galería EN EL SERVIDOR. Recibe el archivo por FormData.
+export async function uploadGalleryImageAction(
+  formData: FormData
 ): Promise<ActionResult> {
   const { supabase, stylist } = await getCurrentStylist();
   if (!stylist) return { ok: false, error: "No se encontró tu perfil." };
+
+  const file = formData.get("file") as File | null;
+  const invalid = validateImage(file);
+  if (invalid) return { ok: false, error: invalid };
+
+  const path = `gallery/${stylist.id}/${crypto.randomUUID()}.${fileExt(file!.name)}`;
+  const bytes = await file!.arrayBuffer();
+
+  const up = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(path, bytes, { contentType: file!.type || "image/jpeg" });
+  if (up.error) return { ok: false, error: up.error.message };
+
+  const { data: pub } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
 
   const { count } = await supabase
     .from("stylist_gallery")
@@ -105,12 +155,12 @@ export async function addGalleryImageAction(
 
   const { error } = await supabase.from("stylist_gallery").insert({
     stylist_id: stylist.id,
-    image_url: url,
-    caption: caption.trim() || null,
+    image_url: pub.publicUrl,
+    caption: null,
     sort_order: count ?? 0,
   });
-
   if (error) return { ok: false, error: error.message };
+
   revalidateAll();
   return { ok: true };
 }
