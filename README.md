@@ -57,11 +57,27 @@ estilistas y dueños acceden con usuario/contraseña.
 
 - **Resumen** (`/admin`): métricas globales (barberías por estado, estilistas,
   ingresos de los últimos 30 días) y ranking de barberías por ingresos.
-- **Barberías** (`/admin/barberias`): lista todas las barberías de la plataforma
-  y permite **activar / suspender / marcar pendiente**. Suspender la oculta del
-  catálogo público (RLS solo muestra `status = 'active'`).
+- **Barberías** (`/admin/barberias`): lista todas las barberías y permite
+  **activar / suspender / marcar pendiente** (suspender la oculta del catálogo
+  público). Además, **alta completa de barbería + dueño**: el admin crea la
+  barbería (con horarios por defecto) y genera las credenciales del dueño en un
+  solo paso, dejándolo asignado a esa única barbería.
 - Acceso restringido al rol `platform_admin`; el login redirige al admin a
   `/admin` automáticamente.
+
+### Cadena de alta (onboarding por roles)
+
+```
+Admin de plataforma
+   └─ crea barbería + credenciales del DUEÑO  (panel /admin/barberias)
+        └─ el Dueño entra, configura su barbería y crea ESTILISTAS + sus accesos
+             └─ el Estilista entra, edita su perfil y gestiona su agenda
+                  └─ el Cliente reserva sin cuenta
+```
+
+Cada rol genera las credenciales del rol inmediatamente inferior; nadie necesita
+tocar SQL para incorporar gente. La única cuenta que se crea manualmente es la
+del **primer admin** (ver abajo), porque no hay nadie por encima que la cree.
 
 > Pendiente (cuando integres pagos): gestión de planes y **suscripciones con
 > cobro automático** (p. ej. Mercado Pago o Stripe). El esquema ya guarda

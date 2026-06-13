@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AdminHeader } from "@/components/AdminHeader";
+import { CreateBarbershopForm } from "@/components/CreateBarbershopForm";
 import {
   BarbershopAdminList,
   type AdminShopRow,
@@ -44,7 +45,12 @@ export default async function AdminBarberiasPage() {
           Todas las barberías de la plataforma. Suspende para ocultarlas del
           catálogo público.
         </p>
+
         <div className="mt-6">
+          <CreateBarbershopForm />
+        </div>
+
+        <div className="mt-4">
           <BarbershopAdminList shops={rows} />
         </div>
       </main>
